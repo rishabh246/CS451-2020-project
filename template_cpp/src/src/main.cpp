@@ -54,8 +54,8 @@ int main(int argc, char **argv) {
     std::cout << host.id << "\n";
     std::cout << "Human-readable IP: " << host.ipReadable() << "\n";
     std::cout << "Machine-readable IP: " << host.ip << "\n";
-    std::cout << "Human-readbale Port: " << host.portReadable() << "\n";
-    std::cout << "Machine-readbale Port: " << host.port << "\n";
+    std::cout << "Human-readable Port: " << host.portReadable() << "\n";
+    std::cout << "Machine-readable Port: " << host.port << "\n";
     std::cout << "\n";
   }
   std::cout << "\n";
@@ -65,8 +65,8 @@ int main(int argc, char **argv) {
   auto barrier = parser.barrier();
   std::cout << "Human-readable IP: " << barrier.ipReadable() << "\n";
   std::cout << "Machine-readable IP: " << barrier.ip << "\n";
-  std::cout << "Human-readbale Port: " << barrier.portReadable() << "\n";
-  std::cout << "Machine-readbale Port: " << barrier.port << "\n";
+  std::cout << "Human-readable Port: " << barrier.portReadable() << "\n";
+  std::cout << "Machine-readable Port: " << barrier.port << "\n";
   std::cout << "\n";
 
   std::cout << "Signal:\n";
@@ -74,8 +74,8 @@ int main(int argc, char **argv) {
   auto signal = parser.signal();
   std::cout << "Human-readable IP: " << signal.ipReadable() << "\n";
   std::cout << "Machine-readable IP: " << signal.ip << "\n";
-  std::cout << "Human-readbale Port: " << signal.portReadable() << "\n";
-  std::cout << "Machine-readbale Port: " << signal.port << "\n";
+  std::cout << "Human-readable Port: " << signal.portReadable() << "\n";
+  std::cout << "Machine-readable Port: " << signal.port << "\n";
   std::cout << "\n";
 
   std::cout << "Path to output:\n";
