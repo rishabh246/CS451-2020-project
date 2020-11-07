@@ -3,10 +3,10 @@
 #include <thread>
 
 #include "barrier.hpp"
-#include "parser.hpp"
+#include "communicator.hpp"
 #include "hello.h"
+#include "parser.hpp"
 #include <signal.h>
-
 
 static void stop(int) {
   // reset signal handlers to default
@@ -91,15 +91,21 @@ int main(int argc, char **argv) {
   std::cout << "Doing some initialization...\n\n";
 
   Coordinator coordinator(parser.id(), barrier, signal);
+  Communicator communicator(parser.id(), hosts);
 
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
   std::cout << "Broadcasting messages...\n\n";
 
+  if (parser.id() % 2 == 0) {
+    communicator.sendMessage(0, 1);
+  } else {
+    communicator.recvMessage();
+  }
+
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();
-
 
   while (true) {
     std::this_thread::sleep_for(std::chrono::seconds(60));

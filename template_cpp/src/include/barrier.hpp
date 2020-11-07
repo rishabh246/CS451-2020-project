@@ -69,7 +69,7 @@ private:
           size -= ret;
           buf += ret;
       }
-      return 0;
+      return 0; 
   }
 
   template <typename T>
