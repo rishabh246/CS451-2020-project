@@ -8,6 +8,14 @@
 #include "parser.hpp"
 #include <signal.h>
 
+Communicator communicator;
+unsigned long num_messages;
+
+static void test(Message *msg) {
+  std::cout << "Received message " << msg->stringify() << "from process "
+            << msg->recvd_from << "\n";
+}
+
 static void stop(int) {
   // reset signal handlers to default
   signal(SIGTERM, SIG_DFL);
@@ -86,26 +94,51 @@ int main(int argc, char **argv) {
     std::cout << "Path to config:\n";
     std::cout << "===============\n";
     std::cout << parser.configPath() << "\n\n";
+    std::cout << "Config Data:\n";
+    std::cout << "===============\n";
+    std::cout << "Num messages:" << parser.numMessages() << "\n\n";
   }
 
   std::cout << "Doing some initialization...\n\n";
 
+  num_messages = parser.numMessages();
   Coordinator coordinator(parser.id(), barrier, signal);
-  Communicator communicator(parser.id(), hosts);
+  communicator.init(parser.id(), hosts);
 
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
   std::cout << "Broadcasting messages...\n\n";
 
-  if (parser.id() % 2 == 0) {
-    communicator.sendMessage(0, 1);
-  } else {
-    communicator.recvMessage();
+  unsigned long other, sno = 1, recvno = 0;
+  Message msg[5], recv[5];
+
+  if (parser.id() == 1)
+    other = 2;
+  else
+    other = 1;
+
+  std::thread threads[5];
+
+  while (1) {
+    if (sno < 6) {
+      msg[sno - 1] = createBroadCastMsg(sno);
+      communicator.sendMessage(msg[sno - 1], other);
+    }
+    recv[recvno] = communicator.recvMessage();
+    if (recv[recvno].isValid()) {
+      threads[recvno] = std::thread(test, &recv[recvno]);
+      recvno++;
+    }
+    sno++;
   }
 
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();
+
+  for (int i = 0; i <= 4; i++) {
+    threads[i].join();
+  }
 
   while (true) {
     std::this_thread::sleep_for(std::chrono::seconds(60));

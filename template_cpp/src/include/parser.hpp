@@ -103,6 +103,20 @@ public:
     parsed = true;
   }
 
+  unsigned long numMessages() {
+    std::ifstream configFile(configPath());
+    if (!configFile.is_open()) {
+      std::ostringstream os;
+      os << "`" << configPath() << "` does not exist.";
+      throw std::invalid_argument(os.str());
+    }
+
+    std::string line;
+    int lineNum = 0;
+    std::getline(configFile, line);
+    return stoul(line, NULL, 0);
+  }
+
   unsigned long id() const {
     checkParsed();
     return id_;
@@ -227,7 +241,8 @@ private:
   void help(const int, char const *const *argv) {
     auto configStr = "CONFIG";
     std::cerr << "Usage: " << argv[0]
-              << " --id ID --hosts HOSTS --barrier NAME:PORT --signal NAME:PORT --output OUTPUT";
+              << " --id ID --hosts HOSTS --barrier NAME:PORT --signal "
+                 "NAME:PORT --output OUTPUT";
 
     if (!withConfig) {
       std::cerr << "\n";
