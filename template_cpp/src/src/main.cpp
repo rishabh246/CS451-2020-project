@@ -3,18 +3,19 @@
 #include <thread>
 
 #include "barrier.hpp"
-#include "communicator.hpp"
+#include "fairlosslink.hpp"
 #include "hello.h"
 #include "parser.hpp"
 #include <signal.h>
 
-Communicator communicator;
+/* Globals */
+
+FairLossLink FLL;
 unsigned long num_messages;
 
-static void test(Message *msg) {
-  std::cout << "Received message " << msg->stringify() << "from process "
-            << msg->recvd_from << "\n";
-}
+#define MAX_THREAD_COUNT 10
+std::thread threads[MAX_THREAD_COUNT];
+uint thread_no = 0;
 
 static void stop(int) {
   // reset signal handlers to default
@@ -103,40 +104,30 @@ int main(int argc, char **argv) {
 
   num_messages = parser.numMessages();
   Coordinator coordinator(parser.id(), barrier, signal);
-  communicator.init(parser.id(), hosts);
 
+  FLL_init(&FLL, parser.id(), parser.hosts(), threads, &thread_no);
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
   std::cout << "Broadcasting messages...\n\n";
 
-  unsigned long other, sno = 1, recvno = 0;
-  Message msg[5], recv[5];
+  unsigned long other, sno = 1;
+  Message msg;
 
   if (parser.id() == 1)
     other = 2;
   else
     other = 1;
 
-  std::thread threads[5];
-
-  while (1) {
-    if (sno < 6) {
-      msg[sno - 1] = createBroadCastMsg(sno);
-      communicator.sendMessage(msg[sno - 1], other);
-    }
-    recv[recvno] = communicator.recvMessage();
-    if (recv[recvno].isValid()) {
-      threads[recvno] = std::thread(test, &recv[recvno]);
-      recvno++;
-    }
-    sno++;
-  }
+  do {
+    msg = createBroadCastMsg(sno++);
+    FLL_send(&FLL, msg, other);
+  } while (sno < num_messages);
 
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();
 
-  for (int i = 0; i <= 4; i++) {
+  for (uint i = 0; i <= thread_no; i++) {
     threads[i].join();
   }
 
