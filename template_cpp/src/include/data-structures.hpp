@@ -1,17 +1,54 @@
 #pragma once
+#include <algorithm>
 #include <condition_variable>
 #include <mutex>
 #include <queue>
 
-template <typename T> class sharedUnorderedSet {
+/***** Thread safe vector *****/
+
+template <typename T> class SharedVector {
 private:
-  std::mutex m;
-  std::unordered_set<T> _set;
+  std::mutex _m;
+  std::vector<T> _vec;
 
 public:
+  SharedVector();
+  ~SharedVector();
   void add(const T &item);
-  void remove(const T &item);
+  bool
+  remove(const T &item); /* Returns true if item existed, false otherwise */
+  std::vector<T> get_items();
 };
+
+template <typename T> SharedVector<T>::SharedVector() {}
+
+template <typename T> SharedVector<T>::~SharedVector() {}
+
+template <typename T> void SharedVector<T>::add(const T &item) {
+  std::lock_guard<std::mutex> lock(_m);
+  _vec.push_back(item);
+}
+
+template <typename T> bool SharedVector<T>::remove(const T &item) {
+  std::lock_guard<std::mutex> lock(_m);
+  auto pos = std::find(_vec.begin(), _vec.end(), item);
+  if (pos == _vec.end())
+    return false;
+  else
+    _vec.erase(pos);
+  return true;
+}
+
+template <typename T> std::vector<T> SharedVector<T>::get_items() {
+  std::lock_guard<std::mutex> lock(_m);
+  std::vector<T> curr_items;
+  curr_items.insert(curr_items.end(), _vec.begin(), _vec.end());
+  return curr_items;
+}
+
+/***** Thread safe vector *****/
+
+/***** Thread safe queue *****/
 
 /* From
  * https://stackoverflow.com/questions/36762248/why-is-stdqueue-not-thread-safe
@@ -79,3 +116,5 @@ template <typename T> int SharedQueue<T>::size() {
 }
 
 template <typename T> bool SharedQueue<T>::empty() { return size() == 0; }
+
+/***** Thread safe queue ends *****/
