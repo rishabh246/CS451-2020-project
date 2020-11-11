@@ -114,22 +114,22 @@ int main(int argc, char **argv) {
 
   unsigned long sno = INITIAL_SNO;
 
-  AppMessage app_msg;
-  app_msg.orig_source = parser.id();
+  NetworkMessage msg;
+  msg.app_msg.source = parser.id();
 
   do {
-    app_msg.sno = sno;
-    BEB_send(&beb, app_msg);
+    msg.app_msg.sno = sno;
+    std::cout << "[Main process:] Sending message " << msg.stringify() << "\n";
+    BEB_send(&beb, msg);
     sno++;
   } while (sno < INITIAL_SNO + num_messages);
 
   sno = INITIAL_SNO;
   do {
-    app_msg = BEB_recv(&beb);
-    std::cout << "[Main process:] Received message " << app_msg.stringify()
-              << "\n";
+    msg = BEB_recv(&beb);
+    std::cout << "[Main process:] Received message " << msg.stringify() << "\n";
     sno++;
-  } while (sno < INITIAL_SNO + (num_messages * num_other_processes));
+  } while (1);
 
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();

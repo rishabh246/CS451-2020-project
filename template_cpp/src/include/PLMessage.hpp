@@ -1,5 +1,5 @@
 #pragma once
-#include <AppMessage.hpp>
+#include <NetworkMessage.hpp>
 #include <cerrno>
 #include <clocale>
 #include <stdlib.h>
@@ -9,15 +9,15 @@
 
 enum PLMessageType {
   TX,
-  L2ACK
+  ACK
 }; /* Types of message that the application layer can send */
 
 class PLMessage {
 public:
   PLMessageType type;
-  AppMessage msg;
+  NetworkMessage msg;
 
-  PLMessage(PLMessageType type, AppMessage msg) : type(type), msg(msg) {}
+  PLMessage(PLMessageType type, NetworkMessage msg) : type(type), msg(msg) {}
 
   PLMessage(const PLMessage &msg) : type(msg.type) { this->msg = msg.msg; }
 
@@ -43,15 +43,16 @@ PLMessage PLUnmarshall(char *buf, unsigned long len) {
   if (str.substr(0, PLHeaderLen) == "[TX ]")
     type = TX;
   else
-    type = L2ACK;
-  return PLMessage(type, AppUnmarshall(buf + PLHeaderLen, len - PLHeaderLen));
+    type = ACK;
+  return PLMessage(type,
+                   NetworkUnmarshall(buf + PLHeaderLen, len - PLHeaderLen));
 }
 
 PLMessage createAck(PLMessage msg);
 
 PLMessage createAck(PLMessage msg) {
   PLMessage ack = msg;
-  ack.type = L2ACK;
+  ack.type = ACK;
   /* Not ideal, but switch of sender, receiver is done by FLL */
   return ack;
 }
