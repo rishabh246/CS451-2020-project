@@ -2,16 +2,17 @@
 #include <iostream>
 #include <thread>
 
-#include "PerfectLink.hpp"
+#include "BEB.hpp"
 #include "barrier.hpp"
 #include "hello.h"
 #include "parser.hpp"
 #include <signal.h>
 
 /* Globals */
-
-PerfectLink PL;
+#define INITIAL_SNO 30
+BEB beb;
 unsigned long num_messages;
+unsigned long num_other_processes = 0;
 
 #define MAX_THREAD_COUNT 10
 std::vector<std::thread> threads;
@@ -103,7 +104,7 @@ int main(int argc, char **argv) {
 
   num_messages = parser.numMessages();
   Coordinator coordinator(parser.id(), barrier, signal);
-  PL_init(&PL, parser.id(), parser.hosts(), &threads);
+  BEB_init(&beb, parser.id(), parser.hosts(), &threads);
   std::cout << "Number of background threads launched: " << threads.size()
             << "\n";
   std::cout << "Waiting for all processes to finish initialization\n\n";
@@ -111,31 +112,24 @@ int main(int argc, char **argv) {
 
   std::cout << "Broadcasting messages...\n\n";
 
-  unsigned long other, sno = 20;
-
-  if (parser.id() == 1)
-    other = 2;
-  else
-    other = 1;
+  unsigned long sno = INITIAL_SNO;
 
   AppMessage app_msg;
-  app_msg.sender = parser.id();
-  app_msg.receiver = other;
-  app_msg.orig_source = app_msg.sender;
+  app_msg.orig_source = parser.id();
 
   do {
     app_msg.sno = sno;
-    PL_send(&PL, app_msg);
+    BEB_send(&beb, app_msg);
     sno++;
-  } while (sno < 20 + num_messages);
+  } while (sno < INITIAL_SNO + num_messages);
 
-  sno = 20;
+  sno = INITIAL_SNO;
   do {
-    app_msg = PL_recv(&PL);
+    app_msg = BEB_recv(&beb);
     std::cout << "[Main process:] Received message " << app_msg.stringify()
               << "\n";
     sno++;
-  } while (sno < 20 + num_messages);
+  } while (sno < INITIAL_SNO + (num_messages * num_other_processes));
 
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();

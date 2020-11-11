@@ -151,13 +151,8 @@ void receiver(FairLossLink *link) {
             ack.msg.sender = link->host_id;
             ack.msg.receiver = it.first;
             link->incoming.push_back(ack);
-            std::cout << "FLL receiver: Adding an ack here \n";
-
-          } else
-            // std::cout << identifier << "Received PLMessage " <<
-            // msg.stringify()
-            //           << "from process " << it.first << "\n";
-            break;
+          }
+          break;
         }
       }
     }

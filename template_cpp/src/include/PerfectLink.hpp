@@ -5,7 +5,7 @@
 /* Need to add no duplication property */
 class PerfectLink {
 public:
-  FairLossLink FLL; /* For layering */
+  FairLossLink FLL;
   SharedQueue<AppMessage> outgoing;
   SharedMap<unsigned long, AppMessage>
       unacked_messages;             // Key is destination of msg
@@ -97,7 +97,6 @@ void delivery(PerfectLink *link) {
                                  msg.stringify() + " " +
                                  std::string(std::strerror(errno)));
       }
-      std::cout << identifier << msg.msg.stringify() << "\n";
     }
   }
 }
