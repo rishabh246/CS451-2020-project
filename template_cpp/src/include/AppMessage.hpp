@@ -45,6 +45,12 @@ public:
       : type(msg.type), sno(msg.sno), orig_source(msg.orig_source),
         sender(msg.sender), receiver(msg.receiver) {}
 
+  bool operator==(const AppMessage &other) {
+    return (this->type == other.type && this->sno == other.sno &&
+            this->orig_source == other.orig_source &&
+            this->receiver == other.receiver);
+  }
+
   std::string stringify() {
     return stringify_host_ids(sender) + stringify_type(type) +
            stringify_sno(sno) + stringify_host_ids(orig_source);
@@ -97,7 +103,6 @@ AppMessage AppUnmarshall(char *buf, unsigned long len) {
   AppMessageType type;
   unsigned long sno, orig_source, sender;
   std::string str(buf);
-  LOG(str);
   sender = unmarshall_host_ids(str.substr(1, IDStrLen - 2));
   type = unmarshall_type(str.substr(IDStrLen + 1, TypeStrLen - 2));
   sno = unmarshall_sno(str.substr(IDStrLen + TypeStrLen + 1, SNOStrLen - 2));

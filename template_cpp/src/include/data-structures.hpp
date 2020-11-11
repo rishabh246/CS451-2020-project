@@ -1,8 +1,10 @@
 #pragma once
 #include <algorithm>
 #include <condition_variable>
+#include <map>
 #include <mutex>
 #include <queue>
+#include <vector>
 
 /***** Thread safe vector *****/
 
@@ -14,7 +16,7 @@ private:
 public:
   SharedVector();
   ~SharedVector();
-  void add(const T &item);
+  void push_back(const T &item);
   bool
   remove(const T &item); /* Returns true if item existed, false otherwise */
   std::vector<T> get_items();
@@ -24,7 +26,7 @@ template <typename T> SharedVector<T>::SharedVector() {}
 
 template <typename T> SharedVector<T>::~SharedVector() {}
 
-template <typename T> void SharedVector<T>::add(const T &item) {
+template <typename T> void SharedVector<T>::push_back(const T &item) {
   std::lock_guard<std::mutex> lock(_m);
   _vec.push_back(item);
 }
@@ -47,6 +49,45 @@ template <typename T> std::vector<T> SharedVector<T>::get_items() {
 }
 
 /***** Thread safe vector *****/
+
+/***** Thread safe Map *****/
+
+template <typename Key, typename Val> class SharedMap {
+private:
+  std::mutex _m;
+  std::map<Key, std::vector<Val>> _map;
+
+public:
+  SharedMap() {}
+  ~SharedMap() {}
+  void insert_item(const Key &key, const Val &val) {
+    std::lock_guard<std::mutex> lock(_m);
+    if (_map.find(key) != _map.end())
+      _map[key].push_back(val);
+    else
+      _map[key] = std::vector<Val>{val};
+  }
+  bool remove(const Key &key, const Val &val)
+  /* Returns true if item existed, false otherwise */ {
+    std::lock_guard<std::mutex> lock(_m);
+    if (_map.find(key) == _map.end())
+      return false;
+    auto pos = std::find(_map[key].begin(), _map[key].end(), val);
+    if (pos == _map[key].end())
+      return false;
+    else
+      _map[key].erase(pos);
+    return true;
+  }
+  std::map<Key, std::vector<Val>> get_copy() {
+    std::lock_guard<std::mutex> lock(_m);
+    std::map<Key, std::vector<Val>> curr_items;
+    curr_items.insert(_map.begin(), _map.end());
+    return curr_items;
+  }
+};
+
+/***** Thread safe Map *****/
 
 /***** Thread safe queue *****/
 

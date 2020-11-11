@@ -2,7 +2,7 @@
 #include <iostream>
 #include <thread>
 
-#include "FairLossLink.hpp"
+#include "PerfectLink.hpp"
 #include "barrier.hpp"
 #include "hello.h"
 #include "parser.hpp"
@@ -10,7 +10,7 @@
 
 /* Globals */
 
-FairLossLink FLL;
+PerfectLink PL;
 unsigned long num_messages;
 
 #define MAX_THREAD_COUNT 10
@@ -103,8 +103,9 @@ int main(int argc, char **argv) {
 
   num_messages = parser.numMessages();
   Coordinator coordinator(parser.id(), barrier, signal);
-  FLL_init(&FLL, parser.id(), parser.hosts(), &threads);
-  std::cout << threads.size() << "\n";
+  PL_init(&PL, parser.id(), parser.hosts(), &threads);
+  std::cout << "Number of background threads launched: " << threads.size()
+            << "\n";
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
@@ -122,11 +123,18 @@ int main(int argc, char **argv) {
   app_msg.receiver = other;
   app_msg.orig_source = app_msg.sender;
 
-  PLMessage pl_msg(TX, app_msg);
-
   do {
-    pl_msg.msg.sno = sno++;
-    FLL_send(&FLL, pl_msg);
+    app_msg.sno = sno;
+    PL_send(&PL, app_msg);
+    sno++;
+  } while (sno < 20 + num_messages);
+
+  sno = 20;
+  do {
+    app_msg = PL_recv(&PL);
+    std::cout << "[Main process:] Received message " << app_msg.stringify()
+              << "\n";
+    sno++;
   } while (sno < 20 + num_messages);
 
   std::cout << "Signaling end of broadcasting messages\n\n";
