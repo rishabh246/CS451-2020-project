@@ -16,8 +16,8 @@ public:
 /* Interface */
 void BEB_init(BEB *beb, unsigned long host_id, std::vector<Parser::Host> hosts,
               std::vector<std::thread> *threads);
-void BEB_send(BEB *beb, NetworkMessage msg);
-NetworkMessage BEB_recv(BEB *beb);
+void BEB_send(BEB *beb, AppMessage msg);
+AppMessage BEB_recv(BEB *beb);
 
 void BEB_init(BEB *beb, unsigned long host_id, std::vector<Parser::Host> hosts,
               std::vector<std::thread> *threads) {
@@ -29,12 +29,14 @@ void BEB_init(BEB *beb, unsigned long host_id, std::vector<Parser::Host> hosts,
   PL_init(&(beb->PL), host_id, hosts, threads);
 }
 
-void BEB_send(BEB *beb, NetworkMessage msg) {
-  NetworkMessage new_msg = msg;
-  new_msg.sender = beb->id;
+void BEB_send(BEB *beb, AppMessage msg) {
+  NetworkMessage new_msg(msg, beb->id, 0);
   for (auto it : beb->others) {
     new_msg.receiver = it;
     PL_send(&(beb->PL), new_msg);
   }
 }
-NetworkMessage BEB_recv(BEB *beb) { return PL_recv(&(beb->PL)); }
+AppMessage BEB_recv(BEB *beb) {
+  NetworkMessage msg = PL_recv(&(beb->PL));
+  return msg.app_msg;
+}

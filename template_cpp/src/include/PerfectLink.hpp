@@ -7,7 +7,7 @@ class PerfectLink {
 public:
   FairLossLink FLL;
   SharedQueue<NetworkMessage> outgoing;
-  SharedMap<unsigned long, NetworkMessage>
+  SharedMapVec<unsigned long, NetworkMessage>
       unacked_messages;             // Key is destination of msg
   std::string identifier = "[PL]:"; // For debugging
   PerfectLink() {}

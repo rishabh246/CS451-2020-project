@@ -2,7 +2,7 @@
 #include <iostream>
 #include <thread>
 
-#include "BEB.hpp"
+#include "URB.hpp"
 #include "barrier.hpp"
 #include "hello.h"
 #include "parser.hpp"
@@ -10,7 +10,7 @@
 
 /* Globals */
 #define INITIAL_SNO 30
-BEB beb;
+URB urb;
 unsigned long num_messages;
 unsigned long num_other_processes = 0;
 
@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
 
   num_messages = parser.numMessages();
   Coordinator coordinator(parser.id(), barrier, signal);
-  BEB_init(&beb, parser.id(), parser.hosts(), &threads);
+  URB_init(&urb, parser.id(), parser.hosts(), &threads);
   std::cout << "Number of background threads launched: " << threads.size()
             << "\n";
   std::cout << "Waiting for all processes to finish initialization\n\n";
@@ -114,19 +114,19 @@ int main(int argc, char **argv) {
 
   unsigned long sno = INITIAL_SNO;
 
-  NetworkMessage msg;
-  msg.app_msg.source = parser.id();
+  AppMessage msg;
+  msg.source = parser.id();
 
   do {
-    msg.app_msg.sno = sno;
+    msg.sno = sno;
     std::cout << "[Main process:] Sending message " << msg.stringify() << "\n";
-    BEB_send(&beb, msg);
+    URB_send(&urb, msg);
     sno++;
   } while (sno < INITIAL_SNO + num_messages);
 
   sno = INITIAL_SNO;
   do {
-    msg = BEB_recv(&beb);
+    msg = URB_recv(&urb);
     std::cout << "[Main process:] Received message " << msg.stringify() << "\n";
     sno++;
   } while (1);

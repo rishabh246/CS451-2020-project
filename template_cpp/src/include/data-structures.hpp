@@ -55,11 +55,43 @@ template <typename T> std::vector<T> SharedVector<T>::get_items() {
 template <typename Key, typename Val> class SharedMap {
 private:
   std::mutex _m;
-  std::map<Key, std::vector<Val>> _map;
+  std::map<Key, Val> _map;
 
 public:
   SharedMap() {}
   ~SharedMap() {}
+  void insert(const Key &key, const Val &val) {
+    std::lock_guard<std::mutex> lock(_m);
+    _map[key] = val;
+  }
+  bool exists(const Key &key) {
+    std::lock_guard<std::mutex> lock(_m);
+    return _map.find(key) == _map.end();
+  }
+  bool remove(const Key &key)
+  /* Returns true if item existed, false otherwise */ {
+    std::lock_guard<std::mutex> lock(_m);
+    auto pos = _map.find(key);
+    if (pos == _map[key].end())
+      return false;
+    else
+      _map.erase(pos);
+  }
+};
+
+/***** Thread safe Map *****/
+
+/***** Thread safe Map where all values are vectors
+ *  This is actually quite redundant, and should be merged in SharedMap *****/
+
+template <typename Key, typename Val> class SharedMapVec {
+private:
+  std::mutex _m;
+  std::map<Key, std::vector<Val>> _map;
+
+public:
+  SharedMapVec() {}
+  ~SharedMapVec() {}
   void insert_item(const Key &key, const Val &val) {
     std::lock_guard<std::mutex> lock(_m);
     if (_map.find(key) != _map.end())
@@ -67,6 +99,19 @@ public:
     else
       _map[key] = std::vector<Val>{val};
   }
+  bool exists(const Key &key, const Val &val) {
+    /* IMPORTANT: This action is not atomic when combined with an insert or
+    remove. Hence, race conditions exist!! However, the use-case for this
+    particular program avoids them */
+    std::lock_guard<std::mutex> lock(_m);
+    if (_map.find(key) == _map.end())
+      return false;
+    auto pos = std::find(_map[key].begin(), _map[key].end(), val);
+    if (pos == _map[key].end())
+      return false;
+    return true;
+  }
+
   bool remove(const Key &key, const Val &val)
   /* Returns true if item existed, false otherwise */ {
     std::lock_guard<std::mutex> lock(_m);
