@@ -1,6 +1,7 @@
 #pragma once
 #include "PLMessage.hpp"
 #include "data-structures.hpp"
+#include "debug.hpp"
 #include "parser.hpp" /* TODO: Not great layering */
 #include "socket-helpers.hpp"
 
@@ -22,8 +23,8 @@ public:
 };
 /* Interface */
 void FLL_init(FairLossLink *link, unsigned long host_id,
-              std::vector<Parser::Host> hosts, std::thread *threads,
-              uint *thread_no);
+              std::vector<Parser::Host> hosts,
+              std::vector<std::thread> *threads);
 
 void FLL_send(FairLossLink *link, PLMessage msg);
 PLMessage FLL_recv(FairLossLink *link);
@@ -35,8 +36,8 @@ void receiver(FairLossLink *link);
 /* Definitions */
 
 void FLL_init(FairLossLink *link, unsigned long host_id,
-              std::vector<Parser::Host> hosts, std::thread *threads,
-              uint *thread_no) {
+              std::vector<Parser::Host> hosts,
+              std::vector<std::thread> *threads) {
 
   link->host_id = host_id;
   struct sockaddr_in addr;
@@ -75,10 +76,8 @@ void FLL_init(FairLossLink *link, unsigned long host_id,
     }
   }
   /* Launch background threads */
-  threads[*thread_no] = std::thread(sender, link);
-  *thread_no++;
-  // threads[*thread_no] = std::thread(receiver, link);
-  // *thread_no++;
+  threads->push_back(std::thread(sender, link));
+  threads->push_back(std::thread(receiver, link));
 }
 
 void FLL_send(FairLossLink *link, PLMessage msg) {
@@ -134,13 +133,15 @@ void receiver(FairLossLink *link) {
 
   while (1) {
 
-    n = recvfrom(link->sockfd, reinterpret_cast<char *>(buffer), 4, MSG_WAITALL,
-                 reinterpret_cast<struct sockaddr *>(&cli_addr), &len);
+    n = recvfrom(link->sockfd, reinterpret_cast<char *>(buffer), MAX_MSG_SIZE,
+                 MSG_WAITALL, reinterpret_cast<struct sockaddr *>(&cli_addr),
+                 &len);
     if (n > 0) {
       buffer[n] = '\0';
       for (auto it : link->others) {
         if (compareSockAddr(it.second, cli_addr)) {
           /* An addition check that a useful PLMessage has been received */
+          std::string s(buffer);
           PLMessage msg = PLUnmarshall(buffer, n);
           msg.msg.receiver = link->host_id;
           std::cout << identifier << "Received PLMessage " << msg.stringify()
@@ -151,7 +152,7 @@ void receiver(FairLossLink *link) {
             PLMessage ack = createAck(msg);
             ack.msg.sender = link->host_id;
             ack.msg.receiver = it.first;
-            link->incoming.push_back(msg);
+            link->incoming.push_back(ack);
           }
           break;
         }

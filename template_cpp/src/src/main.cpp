@@ -14,8 +14,7 @@ FairLossLink FLL;
 unsigned long num_messages;
 
 #define MAX_THREAD_COUNT 10
-std::thread threads[MAX_THREAD_COUNT];
-uint thread_no = 0;
+std::vector<std::thread> threads;
 
 static void stop(int) {
   // reset signal handlers to default
@@ -104,8 +103,8 @@ int main(int argc, char **argv) {
 
   num_messages = parser.numMessages();
   Coordinator coordinator(parser.id(), barrier, signal);
-  FLL_init(&FLL, parser.id(), parser.hosts(), threads, &thread_no);
-  std::cout << thread_no << "\n";
+  FLL_init(&FLL, parser.id(), parser.hosts(), &threads);
+  std::cout << threads.size() << "\n";
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
@@ -133,7 +132,7 @@ int main(int argc, char **argv) {
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();
 
-  for (uint i = 0; i <= thread_no; i++) {
+  for (uint i = 0; i <= threads.size(); i++) {
     threads[i].join();
   }
 

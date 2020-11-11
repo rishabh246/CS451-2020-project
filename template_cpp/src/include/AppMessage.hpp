@@ -1,4 +1,5 @@
 #pragma once
+#include "debug.hpp"
 #include <cerrno>
 #include <clocale>
 #include <cstring>
@@ -12,9 +13,9 @@ enum AppMessageType {
   FWD
 }; /* Types of message that the application layer can send */
 
-#define IDStrLen 5   /* Host ID specified by 6 characters */
-#define SNOStrLen 12 /* Serial number specified by 13 characters */
-#define TypeStrLen 3 /* Type specified using 4 characters */
+#define IDStrLen 5   /* Host ID specified by 5 characters */
+#define SNOStrLen 8  /* Serial number specified by 8 characters */
+#define TypeStrLen 3 /* Type specified using 3 characters */
 
 std::string stringify_host_ids(unsigned long id);
 std::string stringify_sno(unsigned long sno);
@@ -58,7 +59,7 @@ std::string stringify_host_ids(unsigned long id) {
 
 std::string stringify_sno(unsigned long sno) {
   std::stringstream s;
-  s << "[" << std::setfill('0') << std::setw(3) << sno << ']';
+  s << "[" << std::setfill('0') << std::setw(6) << sno << ']';
   return s.str();
 }
 
@@ -73,23 +74,22 @@ std::string stringify_type(AppMessageType type) {
   return text;
 }
 
-unsigned long unmarshall_host_ids(std::string text) {
-  text = text.substr(1, IDStrLen - 1);
-  return std::stoul(text);
-}
-unsigned long unmarshall_sno(std::string text) {
-  text = text.substr(1, SNOStrLen - 1);
-  return std::stoul(text);
-}
+unsigned long unmarshall_host_ids(std::string text) { return std::stoul(text); }
+unsigned long unmarshall_sno(std::string text) { return std::stoul(text); }
 AppMessageType unmarshall_type(std::string text) {
-  text = text.substr(1, TypeStrLen - 1);
-  return static_cast<AppMessageType>(std::stoul(text));
+  if (text.at(0) == 'B')
+    return BROADCAST;
+  else if (text.at(0) == 'A')
+    return ACK;
+  else
+    return FWD;
 }
 
 AppMessage AppUnmarshall(char *buf, unsigned long len);
 AppMessage AppUnmarshall(char *buf, unsigned long len) {
-  if (len != IDStrLen + TypeStrLen + SNOStrLen + IDStrLen)
+  if (len < IDStrLen + TypeStrLen + SNOStrLen + IDStrLen)
   /* TODO: Need to guard against more complex errors */ {
+    LOG(len);
     throw std::runtime_error("Unmarshalling mangled AppMessage" +
                              std::string(std::strerror(errno)));
   }
@@ -97,11 +97,12 @@ AppMessage AppUnmarshall(char *buf, unsigned long len) {
   AppMessageType type;
   unsigned long sno, orig_source, sender;
   std::string str(buf);
-  sender = unmarshall_host_ids(str.substr(0, IDStrLen));
-  type = unmarshall_type(str.substr(IDStrLen, TypeStrLen));
-  sno = unmarshall_sno(str.substr(IDStrLen + TypeStrLen, SNOStrLen));
+  LOG(str);
+  sender = unmarshall_host_ids(str.substr(1, IDStrLen - 2));
+  type = unmarshall_type(str.substr(IDStrLen + 1, TypeStrLen - 2));
+  sno = unmarshall_sno(str.substr(IDStrLen + TypeStrLen + 1, SNOStrLen - 2));
   orig_source = unmarshall_host_ids(
-      str.substr(IDStrLen + TypeStrLen + SNOStrLen, IDStrLen));
+      str.substr(IDStrLen + TypeStrLen + SNOStrLen + 1, IDStrLen - 2));
   return AppMessage(type, sno, orig_source, sender,
                     0); /* Not ideal, but this is set by the FLL */
 }
