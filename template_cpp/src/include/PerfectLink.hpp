@@ -1,19 +1,16 @@
-#include "fairlosslink.hpp"
-#include "message.hpp"
-#include "shared-data.h"
+#include "FairLossLink.hpp"
+#include "PLMessage.hpp"
+#include "data-structures.hpp"
 
-void perfectSend(Message msg, size_t host_id) {}
-
+/* Need to add no duplication property */
 class PerfectLink {
 public:
-  FairLossLink FLL;              /* For layering */
-  SharedQueue<Message> delivery; /* Output queue */
-  /* collection of un-acked messages. Needs to be a shared DS */
+  FairLossLink FLL; /* For layering */
+  SharedQueue<AppMessage> incoming;
+  SharedQueue<AppMessage> outgoing;
+
   /* Map of already delivered messages to layer above. Can be std::map because
    * it is handled by a single thread */
-  std::map<unsigned long, struct sockaddr_in>
-      others; /* Bad layering. Also read only */
-
   std::string identifier = "[PL]:"; // For debugging
   PerfectLink() {}
   ~PerfectLink() {}

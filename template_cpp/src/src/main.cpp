@@ -2,8 +2,8 @@
 #include <iostream>
 #include <thread>
 
+#include "FairLossLink.hpp"
 #include "barrier.hpp"
-#include "fairlosslink.hpp"
 #include "hello.h"
 #include "parser.hpp"
 #include <signal.h>
@@ -104,25 +104,31 @@ int main(int argc, char **argv) {
 
   num_messages = parser.numMessages();
   Coordinator coordinator(parser.id(), barrier, signal);
-
   FLL_init(&FLL, parser.id(), parser.hosts(), threads, &thread_no);
+  std::cout << thread_no << "\n";
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
   std::cout << "Broadcasting messages...\n\n";
 
-  unsigned long other, sno = 1;
-  Message msg;
+  unsigned long other, sno = 20;
 
   if (parser.id() == 1)
     other = 2;
   else
     other = 1;
 
+  AppMessage app_msg;
+  app_msg.sender = parser.id();
+  app_msg.receiver = other;
+  app_msg.orig_source = app_msg.sender;
+
+  PLMessage pl_msg(TX, app_msg);
+
   do {
-    msg = createBroadCastMsg(sno++);
-    FLL_send(&FLL, msg, other);
-  } while (sno < num_messages);
+    pl_msg.msg.sno = sno++;
+    FLL_send(&FLL, pl_msg);
+  } while (sno < 20 + num_messages);
 
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();

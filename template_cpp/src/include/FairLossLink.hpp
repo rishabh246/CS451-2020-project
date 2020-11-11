@@ -1,6 +1,6 @@
 #pragma once
+#include "PLMessage.hpp"
 #include "data-structures.hpp"
-#include "message.hpp"
 #include "parser.hpp" /* TODO: Not great layering */
 #include "socket-helpers.hpp"
 
@@ -14,8 +14,8 @@ public:
   struct sockaddr_in socket_addr;
   std::map<unsigned long, struct sockaddr_in>
       others; /* Bad layering. Also read only */
-  SharedQueue<Message> incoming;
-  SharedQueue<Message> outgoing;
+  SharedQueue<PLMessage> incoming;
+  SharedQueue<PLMessage> outgoing;
   std::string identifier = "[FLL]:"; // For debugging
   FairLossLink() {}
   ~FairLossLink() {}
@@ -25,8 +25,8 @@ void FLL_init(FairLossLink *link, unsigned long host_id,
               std::vector<Parser::Host> hosts, std::thread *threads,
               uint *thread_no);
 
-void FLL_send(FairLossLink *link, Message msg, unsigned long host_id);
-Message FLL_recv(FairLossLink *link);
+void FLL_send(FairLossLink *link, PLMessage msg);
+PLMessage FLL_recv(FairLossLink *link);
 
 /* Internal functions */
 void sender(FairLossLink *link);
@@ -74,43 +74,54 @@ void FLL_init(FairLossLink *link, unsigned long host_id,
       link->others[host.id] = addr;
     }
   }
-  threads[*thread_no] = std::thread(receiver, link);
+  /* Launch background threads */
+  threads[*thread_no] = std::thread(sender, link);
   *thread_no++;
+  // threads[*thread_no] = std::thread(receiver, link);
+  // *thread_no++;
 }
 
-void FLL_send(FairLossLink *link, Message msg, unsigned long host_id) {
+void FLL_send(FairLossLink *link, PLMessage msg) {
   link->incoming.push_back(msg);
 }
 
-Message FLL_recv(FairLossLink *link) {
-  Message msg = link->outgoing.front();
+PLMessage FLL_recv(FairLossLink *link) {
+  PLMessage msg = link->outgoing.front();
   link->outgoing.pop_front();
   return msg;
 }
 
 void sender(FairLossLink *link) {
-  Message msg = link->incoming.front();
-  link->incoming.pop_front();
-  std::string identifier = "[FLL Sender Thread]:";
-  // struct sockaddr_in cli_addr;
-  // if (link->others.find(host_id) == link->others.end()) {
-  //   throw std::runtime_error("Tried to send message to non-existent process"
-  //   +
-  //                            std::string(std::strerror(errno)));
-  // }
-  // cli_addr = link->others[host_id];
 
-  // std::string msgstr = msg.stringify();
-  // ssize_t retcode =
-  //     sendto(link->sockfd, reinterpret_cast<const char *>(msgstr.c_str()),
-  //            strlen(msgstr.c_str()), MSG_CONFIRM,
-  //            reinterpret_cast<struct sockaddr *>(&cli_addr),
-  //            sizeof(cli_addr));
-  // if (retcode < 0)
-  //   throw std::runtime_error("SendMessage failure due to " +
-  //                            std::string(std::strerror(errno)));
-  // std::cout << link->identifier << "Message " << msgstr << " sent to host "
-  //           << host_id << std::endl;
+  std::string identifier = "[FLL Sender Thread]:";
+  struct sockaddr_in cli_addr;
+  memset(&cli_addr, 0, sizeof(cli_addr));
+
+  while (1) {
+
+    PLMessage msg = link->incoming.front();
+    link->incoming.pop_front();
+    std::string identifier = "[FLL Sender Thread]:";
+
+    if (link->others.find(msg.msg.receiver) == link->others.end()) {
+      throw std::runtime_error(
+          "Tried to send PLMessage to non-existent process " +
+          std::string(std::strerror(errno)));
+    }
+    cli_addr = link->others[msg.msg.receiver];
+
+    std::string msgstr = msg.stringify();
+    ssize_t retcode = sendto(
+        link->sockfd, reinterpret_cast<const char *>(msgstr.c_str()),
+        strlen(msgstr.c_str()), MSG_CONFIRM,
+        reinterpret_cast<struct sockaddr *>(&cli_addr), sizeof(cli_addr));
+    if (retcode < 0)
+      throw std::runtime_error("SendPLMessage failure due to " +
+                               std::string(std::strerror(errno)));
+    std::cout << identifier << "PLMessage " << msgstr << " sent to host "
+              << msg.msg.receiver << std::endl;
+  }
+  std::cout << "BUG: Reached end of " << identifier << "\n";
 }
 
 void receiver(FairLossLink *link) {
@@ -118,7 +129,6 @@ void receiver(FairLossLink *link) {
   unsigned long n;
   unsigned int len;
   char buffer[MAX_MSG_SIZE];
-  Message msg;
   struct sockaddr_in cli_addr;
   memset(&cli_addr, 0, sizeof(cli_addr));
 
@@ -130,27 +140,23 @@ void receiver(FairLossLink *link) {
       buffer[n] = '\0';
       for (auto it : link->others) {
         if (compareSockAddr(it.second, cli_addr)) {
-          /* Useful message received */
-          msg = unmarshall(buffer, n, it.first);
-          std::cout << identifier << "Received message " << msg.stringify()
-                    << "from process " << msg.recvd_from << "\n";
+          /* An addition check that a useful PLMessage has been received */
+          PLMessage msg = PLUnmarshall(buffer, n);
+          msg.msg.receiver = link->host_id;
+          std::cout << identifier << "Received PLMessage " << msg.stringify()
+                    << "from process " << it.first << "\n";
           link->outgoing.push_back(msg);
-          if (!msg.isAck()) {
-            std::string ackstr = createAckMsg(msg.sno).stringify();
-            ssize_t retcode = sendto(
-                link->sockfd, reinterpret_cast<const char *>(ackstr.c_str()),
-                strlen(ackstr.c_str()), MSG_CONFIRM,
-                reinterpret_cast<struct sockaddr *>(&cli_addr),
-                sizeof(cli_addr));
-            if (retcode < 0)
-              throw std::runtime_error("SendAck failure due to " +
-                                       std::string(std::strerror(errno)));
-            std::cout << identifier << "Ack " << ackstr << " sent to host "
-                      << msg.recvd_from << std::endl;
+          if (msg.type == TX) {
+            /* Don't send. Just add it to the incoming queue*/
+            PLMessage ack = createAck(msg);
+            ack.msg.sender = link->host_id;
+            ack.msg.receiver = it.first;
+            link->incoming.push_back(msg);
           }
           break;
         }
       }
     }
   }
+  std::cout << "BUG: Reached end of " << identifier << "\n";
 }
