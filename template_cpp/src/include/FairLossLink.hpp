@@ -117,7 +117,7 @@ void sender(FairLossLink *link) {
     if (retcode < 0)
       throw std::runtime_error("SendPLMessage failure due to " +
                                std::string(std::strerror(errno)));
-    // std::cout << identifier << "PLMessage " << msgstr << " sent to host "
+    // std::cout << identifier << "Message " << msgstr << " sent to host "
     //           << msg.msg.receiver << std::endl;
   }
   std::cout << "BUG: Reached end of " << identifier << "\n";
@@ -145,6 +145,9 @@ void receiver(FairLossLink *link) {
           PLMessage msg = PLUnmarshall(buffer, n);
           msg.msg.receiver = link->host_id;
           link->outgoing.push_back(msg);
+          // std::cout << identifier << "Message " << msg.stringify()
+          //           << " received from  host " << msg.msg.sender <<
+          //           std::endl;
           if (msg.type == TX) {
             /* Don't send. Just add it to the incoming queue*/
             PLMessage ack = createAck(msg);

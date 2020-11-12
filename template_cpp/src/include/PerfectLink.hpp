@@ -1,6 +1,7 @@
 #include "FairLossLink.hpp"
 #include "PLMessage.hpp"
 #include "data-structures.hpp"
+#include <assert.h>
 
 /* Need to add no duplication property */
 class PerfectLink {
@@ -39,6 +40,8 @@ void PL_send(PerfectLink *link, NetworkMessage msg) {
   PLMessage pl_msg = PLMessage(TX, msg);
   FLL_send(&(link->FLL), pl_msg);
   link->unacked_messages.insert_item(msg.receiver, msg);
+  // std::cout << "Sending message " << pl_msg.msg.stringify() << " to host "
+  //           << pl_msg.msg.receiver << "\n";
 }
 
 NetworkMessage PL_recv(PerfectLink *link) {
@@ -57,6 +60,8 @@ void retransmit(PerfectLink *link) {
       for (auto msg : dest.second) {
         PLMessage pl_msg = PLMessage(TX, msg);
         FLL_send(&(link->FLL), pl_msg);
+        // std::cout << "Re-sending message " << pl_msg.msg.stringify()
+        //           << " to host " << pl_msg.msg.receiver << "\n";
       }
     }
   }
@@ -75,6 +80,9 @@ void delivery(PerfectLink *link) {
       if (delivered.find(recvd_from) == delivered.end()) {
         delivered[recvd_from] = std::vector<NetworkMessage>{msg.msg};
         link->outgoing.push_back(msg.msg);
+        // std::cout << "Received message " << msg.msg.stringify() << " from
+        // host "
+        //           << msg.msg.sender << "\n";
         continue;
       }
       auto it = delivered[recvd_from].begin();
@@ -85,6 +93,9 @@ void delivery(PerfectLink *link) {
       if (it == delivered[recvd_from].end()) {
         delivered[recvd_from].push_back(msg.msg);
         link->outgoing.push_back(msg.msg);
+        // std::cout << "Received message " << msg.msg.stringify() << " from
+        // host "
+        //           << msg.msg.sender << "\n";
       }
     } else {
       /* Remove message from list of unacked messages */
@@ -92,11 +103,8 @@ void delivery(PerfectLink *link) {
       unsigned long temp = msg.msg.sender;
       msg.msg.sender = msg.msg.receiver;
       msg.msg.receiver = temp;
-      if (!link->unacked_messages.remove(recvd_from, msg.msg)) {
-        throw std::runtime_error("Received an ACK for an unsent message " +
-                                 msg.stringify() + "from process " +
-                                 std::to_string(msg.msg.receiver) + " " +
-                                 std::string(std::strerror(errno)));
+      if (link->unacked_messages.exists(recvd_from, msg.msg)) {
+        link->unacked_messages.remove(recvd_from, msg.msg);
       }
     }
   }

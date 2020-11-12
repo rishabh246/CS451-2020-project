@@ -126,8 +126,7 @@ public:
   }
   std::map<Key, std::vector<Val>> get_copy() {
     std::lock_guard<std::mutex> lock(_m);
-    std::map<Key, std::vector<Val>> curr_items;
-    curr_items.insert(_map.begin(), _map.end());
+    std::map<Key, std::vector<Val>> curr_items = this->_map;
     return curr_items;
   }
 };

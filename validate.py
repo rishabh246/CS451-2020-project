@@ -483,7 +483,7 @@ if __name__ == "__main__":
             'attemptsDistribution' : { # Probability with which an interferring thread will
                 'STOP': 0.5,          # select an interferring action (make sure they add up to 1)
                 'CONT': 0.5,
-                'TERM':0
+                'TERM': 0.0
             }
         }
     }
