@@ -112,6 +112,14 @@ int main(int argc, char **argv) {
 
   std::cout << "Broadcasting messages...\n\n";
 
+  std::priority_queue<unsigned long> pq;
+  pq.push(5);
+  pq.push(10);
+
+  while (!pq.empty()) {
+    std::cout << pq.top();
+    pq.pop();
+  }
   unsigned long sno = INITIAL_SNO;
 
   AppMessage msg;
