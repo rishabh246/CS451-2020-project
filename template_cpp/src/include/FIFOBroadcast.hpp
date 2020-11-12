@@ -1,32 +1,30 @@
 #pragma once
 
 #include "URB.hpp"
-
-class FIFOBroadCast {
+#define MAX_NUM_PROCESSES 128
+class FIFOBroadcast {
 public:
   URB urb;
   unsigned long sno;
   unsigned long id;
-  /* Likely to get quite big. Key is msg.source */
-  SharedMapVec<unsigned long, unsigned long> pending;
   SharedQueue<AppMessage> outgoing;
-  FIFOBroadCast() {}
-  ~FIFOBroadCast() {}
+  FIFOBroadcast() {}
+  ~FIFOBroadcast() {}
 };
 
 /* Interface */
-void FIFOBroadCast_init(FIFOBroadCast *fifobc, unsigned long host_id,
+void FIFOBroadcast_init(FIFOBroadcast *fifobc, unsigned long host_id,
                         std::vector<Parser::Host> hosts,
                         std::vector<std::thread> *threads);
-void FIFOBroadCast_send(FIFOBroadCast *fifobc);
-AppMessage FIFOBroadCast_recv(FIFOBroadCast *fifobc);
+AppMessage FIFOBroadcast_send(FIFOBroadcast *fifobc);
+AppMessage FIFOBroadcast_recv(FIFOBroadcast *fifobc);
 
 /* Internal functions */
-void fifobc_delivery(FIFOBroadCast *fifobc);
+void fifobc_delivery(FIFOBroadcast *fifobc);
 
 /* Definitions */
 
-void FIFOBroadCast_init(FIFOBroadCast *fifobc, unsigned long host_id,
+void FIFOBroadcast_init(FIFOBroadcast *fifobc, unsigned long host_id,
                         std::vector<Parser::Host> hosts,
                         std::vector<std::thread> *threads) {
   fifobc->id = host_id;
@@ -36,41 +34,45 @@ void FIFOBroadCast_init(FIFOBroadCast *fifobc, unsigned long host_id,
   threads->push_back(std::thread(fifobc_delivery, fifobc));
 }
 
-void FIFOBroadCast_send(FIFOBroadCast *fifobc) {
+AppMessage FIFOBroadcast_send(FIFOBroadcast *fifobc) {
   AppMessage msg(fifobc->id, fifobc->sno);
   URB_send(&(fifobc->urb), msg);
   fifobc->sno++;
+  return msg;
 }
 
-AppMessage FIFOBroadCast_recv(FIFOBroadCast *fifobc) {
+AppMessage FIFOBroadcast_recv(FIFOBroadcast *fifobc) {
   AppMessage msg = fifobc->outgoing.front();
   fifobc->outgoing.pop_front();
   return msg;
 }
 
-void fifobc_delivery(FIFOBroadCast *fifobc) {
-  std::string identifier = "[FIFOBroadCast delivery thread] :";
-  std::map<std::pair<unsigned long, unsigned long>, unsigned long>
-      acked; // Hack to ensure std::less operator exists
-  unsigned long num_processes = fifobc->urb.others.size() + 1;
+void fifobc_delivery(FIFOBroadcast *fifobc) {
+  std::string identifier = "[FIFOBroadcast delivery thread] :";
+  unsigned long num_processes = fifobc->urb.beb.others.size() + 1;
+  unsigned long
+      next_delivered[MAX_NUM_PROCESSES + 1]; /* We ignore the zeroth element */
+  for (int i = 0; i <= MAX_NUM_PROCESSES; i++)
+    next_delivered[i] = 1;
+  /* Key is msg.source, value is priority_queue of snos */
+  std::map<unsigned long,
+           std::priority_queue<unsigned long, std::vector<unsigned long>,
+                               std::greater<unsigned long>>>
+      pending;
   while (1) {
-    AppMessage msg = BEB_recv(&(fifobc->urb));
-    std::pair<unsigned long, unsigned long> msg_pair =
-        std::make_pair(msg.source, msg.sno);
-
-    /* Updating acked */
-    if (acked.find(msg_pair) == acked.end())
-      acked[msg_pair] = 0;
-    acked[msg_pair]++;
-    if (acked[msg_pair] > num_processes / 2)
-      fifobc->outgoing.push_back(msg);
-
-    /* Updating pending and broadcasting */
-    if (!fifobc->pending.exists(msg.source, msg.sno)) {
-      fifobc->pending.insert_item(msg.source, msg.sno);
-      /* This must be done independent of ack status since you might be the only
-       * correct process that has received everything */
-      BEB_send(&(fifobc->urb), msg);
+    AppMessage msg = URB_recv(&(fifobc->urb));
+    if (pending.find(msg.source) == pending.end()) {
+      std::priority_queue<unsigned long, std::vector<unsigned long>,
+                          std::greater<unsigned long>>
+          temp;
+      pending[msg.source] = temp;
+    }
+    pending[msg.source].push(msg.sno);
+    while (pending[msg.source].top() == next_delivered[msg.source]) {
+      AppMessage final_msg(msg.source, pending[msg.source].top());
+      fifobc->outgoing.push_back(final_msg);
+      pending[msg.source].pop();
+      next_delivered[msg.source]++;
     }
   }
   std::cout << "BUG: Reached end of " << identifier << "\n";

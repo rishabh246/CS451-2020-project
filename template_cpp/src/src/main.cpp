@@ -1,21 +1,38 @@
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <thread>
 
-#include "URB.hpp"
+#include "FIFOBroadcast.hpp"
+#include "LogMessage.hpp"
 #include "barrier.hpp"
 #include "hello.h"
 #include "parser.hpp"
 #include <signal.h>
 
 /* Globals */
-#define INITIAL_SNO 30
-URB urb;
+FIFOBroadcast fifo;
 unsigned long num_messages;
-unsigned long num_other_processes = 0;
+unsigned long num_processes;
+unsigned long num_max_messages;
+std::queue<LogMessage> logs;
+
+const char *log_file_name;
 
 #define MAX_THREAD_COUNT 10
 std::vector<std::thread> threads;
+
+static void write_log() {
+
+  std::ofstream log_file;
+  log_file.open(log_file_name);
+
+  while (!logs.empty()) {
+    log_file << logs.front().stringify() << "\n";
+    logs.pop();
+  }
+  log_file.close();
+}
 
 static void stop(int) {
   // reset signal handlers to default
@@ -27,6 +44,8 @@ static void stop(int) {
 
   // write/flush output file if necessary
   std::cout << "Writing output.\n";
+
+  write_log();
 
   // exit directly from signal handler
   exit(0);
@@ -100,11 +119,19 @@ int main(int argc, char **argv) {
     std::cout << "Num messages:" << parser.numMessages() << "\n\n";
   }
 
+  num_messages = parser.numMessages();
+  num_processes = parser.hosts().size();
+  num_max_messages = num_messages * num_processes;
+  std::cout << "Config Data:\n";
+  std::cout << "===============\n";
+  std::cout << "Maximum possible messages:" << num_max_messages << "\n\n";
+
+  log_file_name = parser.outputPath();
+
   std::cout << "Doing some initialization...\n\n";
 
-  num_messages = parser.numMessages();
   Coordinator coordinator(parser.id(), barrier, signal);
-  URB_init(&urb, parser.id(), parser.hosts(), &threads);
+  FIFOBroadcast_init(&fifo, parser.id(), parser.hosts(), &threads);
   std::cout << "Number of background threads launched: " << threads.size()
             << "\n";
   std::cout << "Waiting for all processes to finish initialization\n\n";
@@ -112,35 +139,28 @@ int main(int argc, char **argv) {
 
   std::cout << "Broadcasting messages...\n\n";
 
-  std::priority_queue<unsigned long> pq;
-  pq.push(5);
-  pq.push(10);
-
-  while (!pq.empty()) {
-    std::cout << pq.top();
-    pq.pop();
-  }
-  unsigned long sno = INITIAL_SNO;
-
-  AppMessage msg;
-  msg.source = parser.id();
+  unsigned long ctr = 0;
 
   do {
-    msg.sno = sno;
-    std::cout << "[Main process:] Sending message " << msg.stringify() << "\n";
-    URB_send(&urb, msg);
-    sno++;
-  } while (sno < INITIAL_SNO + num_messages);
+    AppMessage msg = FIFOBroadcast_send(&fifo);
+    LogMessage log_msg(Broadcast, msg.source, msg.sno);
+    logs.push(log_msg);
+    ctr++;
+  } while (ctr < num_messages);
 
-  sno = INITIAL_SNO;
+  unsigned long msg_ctr = 0;
   do {
-    msg = URB_recv(&urb);
-    std::cout << "[Main process:] Received message " << msg.stringify() << "\n";
-    sno++;
-  } while (1);
+    AppMessage msg = FIFOBroadcast_recv(&fifo);
+    LogMessage log_msg(Delivery, msg.source, msg.sno);
+    logs.push(log_msg);
+    msg_ctr++;
+  } while (msg_ctr < num_max_messages);
 
   std::cout << "Signaling end of broadcasting messages\n\n";
+  std::cout << msg_ctr << "\n";
   coordinator.finishedBroadcasting();
+
+  write_log();
 
   for (uint i = 0; i <= threads.size(); i++) {
     threads[i].join();

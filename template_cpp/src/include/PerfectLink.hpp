@@ -94,7 +94,8 @@ void delivery(PerfectLink *link) {
       msg.msg.receiver = temp;
       if (!link->unacked_messages.remove(recvd_from, msg.msg)) {
         throw std::runtime_error("Received an ACK for an unsent message " +
-                                 msg.stringify() + " " +
+                                 msg.stringify() + "from process " +
+                                 std::to_string(msg.msg.receiver) + " " +
                                  std::string(std::strerror(errno)));
       }
     }
