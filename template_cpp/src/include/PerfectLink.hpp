@@ -40,13 +40,10 @@ void PL_send(PerfectLink *link, NetworkMessage msg) {
   PLMessage pl_msg = PLMessage(TX, msg);
   FLL_send(&(link->FLL), pl_msg);
   link->unacked_messages.insert_item(msg.receiver, msg);
-  // std::cout << "[PL Sender]: " << pl_msg.msg.stringify() << " to host "
-  //           << pl_msg.msg.receiver << "\n";
 }
 
 NetworkMessage PL_recv(PerfectLink *link) {
   NetworkMessage msg = link->outgoing.pop_front();
-  // std::cout << "[PL Receiver]: " << msg.stringify() << " \n";
   return msg;
 }
 
@@ -60,8 +57,6 @@ void retransmit(PerfectLink *link) {
       for (auto msg : dest.second) {
         PLMessage pl_msg = PLMessage(TX, msg);
         FLL_send(&(link->FLL), pl_msg);
-        // std::cout << "Re-sending message " << pl_msg.msg.stringify()
-        //           << " to host " << pl_msg.msg.receiver << "\n";
       }
     }
   }
@@ -76,14 +71,10 @@ void delivery(PerfectLink *link) {
     unsigned long recvd_from = msg.msg.sender;
 
     if (msg.type == TX) {
-      // std::cout << identifier << msg.msg.stringify() << " from host "
-      //           << msg.msg.sender << "\n";
       /* Ensure no duplication */
       if (delivered.find(recvd_from) == delivered.end()) {
         delivered[recvd_from] = std::vector<NetworkMessage>{msg.msg};
         link->outgoing.push_back(msg.msg);
-        // std::cout << identifier << msg.msg.stringify() << " from host "
-        //           << msg.msg.sender << "\n";
       } else {
         auto it = delivered[recvd_from].begin();
         for (; it != delivered[recvd_from].end(); it++) {
@@ -93,8 +84,6 @@ void delivery(PerfectLink *link) {
         if (it == delivered[recvd_from].end()) {
           delivered[recvd_from].push_back(msg.msg);
           link->outgoing.push_back(msg.msg);
-          // std::cout << identifier << msg.msg.stringify() << " from host "
-          //           << msg.msg.sender << "\n";
         }
       }
     } else {
