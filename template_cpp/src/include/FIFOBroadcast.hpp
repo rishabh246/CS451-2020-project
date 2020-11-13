@@ -60,7 +60,6 @@ void fifobc_delivery(FIFOBroadcast *fifobc) {
       pending;
   while (1) {
     AppMessage msg = URB_recv(&(fifobc->urb));
-    // std::cout << identifier << msg.stringify() << "\n" << std::flush;
     if (pending.find(msg.source) == pending.end()) {
       std::priority_queue<unsigned long, std::vector<unsigned long>,
                           std::greater<unsigned long>>
