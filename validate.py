@@ -508,9 +508,9 @@ if __name__ == "__main__":
     testConfig = {
         # Network configuration using the tc command
         'TC': {
-            'delay': ('2ms', '5ms'),
-            'loss': ('0%', '0%'),
-            'reordering': ('5%', '5%')
+            'delay': ('200ms', '50ms'),
+            'loss': ('10%', '25%'),
+            'reordering': ('25%', '50%')
         },
 
         # StressTest configuration

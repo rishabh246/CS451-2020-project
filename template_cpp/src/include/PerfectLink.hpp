@@ -46,8 +46,7 @@ void PL_send(PerfectLink *link, NetworkMessage msg) {
 }
 
 NetworkMessage PL_recv(PerfectLink *link) {
-  NetworkMessage msg = link->outgoing.front();
-  link->outgoing.pop_front();
+  NetworkMessage msg = link->outgoing.pop_front();
   // std::cout << "[PL Receiver]: " << msg.stringify() << " \n";
   return msg;
 }
@@ -55,7 +54,7 @@ NetworkMessage PL_recv(PerfectLink *link) {
 void retransmit(PerfectLink *link) {
   std::string identifier = "[Retransmission thread]: ";
   while (1) {
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     std::map<unsigned long, std::vector<NetworkMessage>> unacked =
         link->unacked_messages.get_copy();
     for (auto dest : unacked) {

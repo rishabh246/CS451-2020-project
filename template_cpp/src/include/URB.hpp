@@ -27,6 +27,7 @@ void urb_delivery(URB *urb);
 
 void URB_init(URB *urb, unsigned long host_id, std::vector<Parser::Host> hosts,
               std::vector<std::thread> *threads) {
+  urb->outgoing.debug_flag = 0;
   BEB_init(&(urb->beb), host_id, hosts, threads);
   /* Launch background threads */
   threads->push_back(std::thread(urb_delivery, urb));
@@ -38,8 +39,7 @@ void URB_send(URB *urb, AppMessage msg) {
 }
 
 AppMessage URB_recv(URB *urb) {
-  AppMessage msg = urb->outgoing.front();
-  urb->outgoing.pop_front();
+  AppMessage msg = urb->outgoing.pop_front();
   return msg;
 }
 
@@ -54,15 +54,15 @@ void urb_delivery(URB *urb) {
         std::make_pair(msg.source, msg.sno);
 
     /* Updating acked */
-    // std::cout << identifier << msg.stringify() << "\n";
+    // std::cout << identifier << msg.stringify() << "\n" << std::flush;
     if (acked.find(msg_pair) == acked.end())
       acked[msg_pair] = 0;
-    if (acked[msg_pair] != num_processes) {
+    if (acked[msg_pair] < num_processes) {
       /* This message has not been delivered yet */
       acked[msg_pair]++;
-      if (acked[msg_pair] > num_processes / 2) {
+      if (acked[msg_pair] > (num_processes / 2)) {
         urb->outgoing.push_back(msg);
-        acked[msg_pair] == num_processes;
+        acked[msg_pair] = num_processes;
         // std::cout << identifier << msg.stringify() << "\n";
       }
       /* Updating pending and broadcasting */

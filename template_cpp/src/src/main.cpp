@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
   do {
     AppMessage msg = FIFOBroadcast_recv(&fifo);
     LogMessage log_msg(Delivery, msg.source, msg.sno);
-    // std::cout << identifier << log_msg.stringify() << "\n";
+    // std::cout << identifier << log_msg.stringify() << "\n" << std::flush;
     logs.push(log_msg);
     msg_ctr++;
   } while (msg_ctr < num_max_messages);

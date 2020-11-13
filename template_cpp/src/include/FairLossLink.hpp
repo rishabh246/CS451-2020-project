@@ -38,7 +38,7 @@ void receiver(FairLossLink *link);
 void FLL_init(FairLossLink *link, unsigned long host_id,
               std::vector<Parser::Host> hosts,
               std::vector<std::thread> *threads) {
-  link->outgoing.debug_flag = 1;
+  link->outgoing.debug_flag = 0;
   link->host_id = host_id;
   struct sockaddr_in addr;
   for (auto &host : hosts) {
@@ -85,8 +85,7 @@ void FLL_send(FairLossLink *link, PLMessage msg) {
 }
 
 PLMessage FLL_recv(FairLossLink *link) {
-  PLMessage msg = link->outgoing.front();
-  link->outgoing.pop_front();
+  PLMessage msg = link->outgoing.pop_front();
   return msg;
 }
 
@@ -98,8 +97,7 @@ void sender(FairLossLink *link) {
 
   while (1) {
 
-    PLMessage msg = link->incoming.front();
-    link->incoming.pop_front();
+    PLMessage msg = link->incoming.pop_front();
     std::string identifier = "[FLL Sender Thread]:";
 
     if (link->others.find(msg.msg.receiver) == link->others.end()) {
