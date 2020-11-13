@@ -31,7 +31,6 @@ void PL_init(PerfectLink *link, unsigned long host_id,
              std::vector<Parser::Host> hosts,
              std::vector<std::thread> *threads) {
   FLL_init(&(link->FLL), host_id, hosts, threads);
-  link->outgoing.debug_flag = 0;
   /* Launch background threads */
   threads->push_back(std::thread(retransmit, link));
   threads->push_back(std::thread(delivery, link));

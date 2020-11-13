@@ -27,7 +27,6 @@ void urb_delivery(URB *urb);
 
 void URB_init(URB *urb, unsigned long host_id, std::vector<Parser::Host> hosts,
               std::vector<std::thread> *threads) {
-  urb->outgoing.debug_flag = 0;
   BEB_init(&(urb->beb), host_id, hosts, threads);
   /* Launch background threads */
   threads->push_back(std::thread(urb_delivery, urb));

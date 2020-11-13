@@ -135,13 +135,8 @@ public:
 
 /***** Thread safe queue *****/
 
-/* From
- * https://stackoverflow.com/questions/36762248/why-is-stdqueue-not-thread-safe
- */
-
 template <typename T> class SharedQueue {
 public:
-  int debug_flag;
   SharedQueue();
   ~SharedQueue();
 
@@ -160,17 +155,9 @@ private:
   std::condition_variable cond_;
 };
 
-template <typename T> SharedQueue<T>::SharedQueue() { debug_flag = 0; }
+template <typename T> SharedQueue<T>::SharedQueue() {}
 
 template <typename T> SharedQueue<T>::~SharedQueue() {}
-
-// template <typename T> T &SharedQueue<T>::front() {
-//   std::unique_lock<std::mutex> mlock(mutex_);
-//   while (queue_.empty()) {
-//     cond_.wait(mlock);
-//   }
-//   return queue_.front();
-// }
 
 template <typename T> T SharedQueue<T>::pop_front() {
   std::unique_lock<std::mutex> mlock(mutex_);
@@ -179,28 +166,15 @@ template <typename T> T SharedQueue<T>::pop_front() {
   }
   T element = queue_.front();
   queue_.pop_front();
-  if (debug_flag)
-    std::cout << "Queue: Pop. Elements remaining =  " << queue_.size() << "\n"
-              << std::flush;
   return element;
 }
 
 template <typename T> void SharedQueue<T>::push_back(T item) {
   std::unique_lock<std::mutex> mlock(mutex_);
   queue_.push_back(item);
-  if (debug_flag)
-    std::cout << "Queue: Push. Elements remaining =  " << queue_.size() << "\n "
-              << std::flush;
   cond_.notify_one(); // notify one waiting thread
   mlock.unlock();     // unlock before notificiation to minimize mutex con
 }
-
-// template <typename T> void SharedQueue<T>::push_back(T &&item) {
-//   std::unique_lock<std::mutex> mlock(mutex_);
-//   queue_.push_back(std::move(item));
-//   mlock.unlock();     // unlock before notificiation to minimize mutex con
-//   cond_.notify_one(); // notify one waiting thread
-// }
 
 template <typename T> int SharedQueue<T>::size() {
   std::unique_lock<std::mutex> mlock(mutex_);

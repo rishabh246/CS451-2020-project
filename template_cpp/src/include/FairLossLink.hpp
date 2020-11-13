@@ -38,7 +38,6 @@ void receiver(FairLossLink *link);
 void FLL_init(FairLossLink *link, unsigned long host_id,
               std::vector<Parser::Host> hosts,
               std::vector<std::thread> *threads) {
-  link->outgoing.debug_flag = 0;
   link->host_id = host_id;
   struct sockaddr_in addr;
   for (auto &host : hosts) {
@@ -115,8 +114,6 @@ void sender(FairLossLink *link) {
     if (retcode < 0)
       throw std::runtime_error("SendPLMessage failure due to " +
                                std::string(std::strerror(errno)));
-    // std::cout << identifier << msg.stringify() << " sent to  host "
-    //           << msg.msg.sender << std::endl;
   }
   std::cout << "BUG: Reached end of " << identifier << "\n";
 }
@@ -143,24 +140,13 @@ void receiver(FairLossLink *link) {
           PLMessage msg = PLUnmarshall(buffer, n);
           msg.msg.receiver = link->host_id;
           link->outgoing.push_back(msg);
-          // std::cout << identifier << "Message " << msg.stringify()
-          //           << " received from  host " << msg.msg.sender <<
-          //           std::endl;
           if (msg.type == TX) {
             /* Don't send. Just add it to the incoming queue*/
             PLMessage ack = createAck(msg);
             ack.msg.sender = link->host_id;
             ack.msg.receiver = it.first;
             link->incoming.push_back(ack);
-            // std::cout << identifier << msg.stringify()
-            //           << " received from  host " << msg.msg.sender <<
-            //           std::endl;
-          } else {
-            // std::cout << identifier << msg.stringify()
-            //           << " received from  host " << msg.msg.sender <<
-            //           std::endl;
           }
-
           break;
         }
       }
