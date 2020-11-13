@@ -141,14 +141,15 @@ public:
 
 template <typename T> class SharedQueue {
 public:
+  int debug_flag;
   SharedQueue();
   ~SharedQueue();
 
   T &front();
   void pop_front();
 
-  void push_back(const T &item);
-  void push_back(T &&item);
+  // void push_back(const T &item);
+  void push_back(T item);
 
   int size();
   bool empty();
@@ -159,7 +160,7 @@ private:
   std::condition_variable cond_;
 };
 
-template <typename T> SharedQueue<T>::SharedQueue() {}
+template <typename T> SharedQueue<T>::SharedQueue() { debug_flag = 0; }
 
 template <typename T> SharedQueue<T>::~SharedQueue() {}
 
@@ -177,21 +178,25 @@ template <typename T> void SharedQueue<T>::pop_front() {
     cond_.wait(mlock);
   }
   queue_.pop_front();
+  if (debug_flag)
+    std::cout << "Queue: Pop\n";
 }
 
-template <typename T> void SharedQueue<T>::push_back(const T &item) {
+template <typename T> void SharedQueue<T>::push_back(T item) {
   std::unique_lock<std::mutex> mlock(mutex_);
   queue_.push_back(item);
   mlock.unlock();     // unlock before notificiation to minimize mutex con
   cond_.notify_one(); // notify one waiting thread
+  if (debug_flag)
+    std::cout << "Queue: Push\n";
 }
 
-template <typename T> void SharedQueue<T>::push_back(T &&item) {
-  std::unique_lock<std::mutex> mlock(mutex_);
-  queue_.push_back(std::move(item));
-  mlock.unlock();     // unlock before notificiation to minimize mutex con
-  cond_.notify_one(); // notify one waiting thread
-}
+// template <typename T> void SharedQueue<T>::push_back(T &&item) {
+//   std::unique_lock<std::mutex> mlock(mutex_);
+//   queue_.push_back(std::move(item));
+//   mlock.unlock();     // unlock before notificiation to minimize mutex con
+//   cond_.notify_one(); // notify one waiting thread
+// }
 
 template <typename T> int SharedQueue<T>::size() {
   std::unique_lock<std::mutex> mlock(mutex_);

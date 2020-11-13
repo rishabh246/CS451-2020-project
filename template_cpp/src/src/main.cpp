@@ -140,6 +140,7 @@ int main(int argc, char **argv) {
   std::cout << "Broadcasting messages...\n\n";
 
   unsigned long ctr = 0;
+  std::string identifier = "[Main Process]:";
 
   do {
     AppMessage msg = FIFOBroadcast_send(&fifo);
@@ -152,6 +153,7 @@ int main(int argc, char **argv) {
   do {
     AppMessage msg = FIFOBroadcast_recv(&fifo);
     LogMessage log_msg(Delivery, msg.source, msg.sno);
+    // std::cout << identifier << log_msg.stringify() << "\n";
     logs.push(log_msg);
     msg_ctr++;
   } while (msg_ctr < num_max_messages);

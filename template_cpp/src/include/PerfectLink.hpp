@@ -31,6 +31,7 @@ void PL_init(PerfectLink *link, unsigned long host_id,
              std::vector<Parser::Host> hosts,
              std::vector<std::thread> *threads) {
   FLL_init(&(link->FLL), host_id, hosts, threads);
+  link->outgoing.debug_flag = 1;
   /* Launch background threads */
   threads->push_back(std::thread(retransmit, link));
   threads->push_back(std::thread(delivery, link));
@@ -40,20 +41,21 @@ void PL_send(PerfectLink *link, NetworkMessage msg) {
   PLMessage pl_msg = PLMessage(TX, msg);
   FLL_send(&(link->FLL), pl_msg);
   link->unacked_messages.insert_item(msg.receiver, msg);
-  // std::cout << "Sending message " << pl_msg.msg.stringify() << " to host "
+  // std::cout << "[PL Sender]: " << pl_msg.msg.stringify() << " to host "
   //           << pl_msg.msg.receiver << "\n";
 }
 
 NetworkMessage PL_recv(PerfectLink *link) {
   NetworkMessage msg = link->outgoing.front();
   link->outgoing.pop_front();
+  // std::cout << "[PL Receiver]: " << msg.stringify() << " \n";
   return msg;
 }
 
 void retransmit(PerfectLink *link) {
   std::string identifier = "[Retransmission thread]: ";
   while (1) {
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::this_thread::sleep_for(std::chrono::seconds(10));
     std::map<unsigned long, std::vector<NetworkMessage>> unacked =
         link->unacked_messages.get_copy();
     for (auto dest : unacked) {
@@ -80,22 +82,20 @@ void delivery(PerfectLink *link) {
       if (delivered.find(recvd_from) == delivered.end()) {
         delivered[recvd_from] = std::vector<NetworkMessage>{msg.msg};
         link->outgoing.push_back(msg.msg);
-        // std::cout << "Received message " << msg.msg.stringify() << " from
-        // host "
+        // std::cout << identifier << msg.msg.stringify() << " from host "
         //           << msg.msg.sender << "\n";
-        continue;
-      }
-      auto it = delivered[recvd_from].begin();
-      for (; it != delivered[recvd_from].end(); it++) {
-        if (msg.msg == *it)
-          break;
-      }
-      if (it == delivered[recvd_from].end()) {
-        delivered[recvd_from].push_back(msg.msg);
-        link->outgoing.push_back(msg.msg);
-        // std::cout << "Received message " << msg.msg.stringify() << " from
-        // host "
-        //           << msg.msg.sender << "\n";
+      } else {
+        auto it = delivered[recvd_from].begin();
+        for (; it != delivered[recvd_from].end(); it++) {
+          if (msg.msg == *it)
+            break;
+        }
+        if (it == delivered[recvd_from].end()) {
+          delivered[recvd_from].push_back(msg.msg);
+          link->outgoing.push_back(msg.msg);
+          // std::cout << identifier << msg.msg.stringify() << " from host "
+          //           << msg.msg.sender << "\n";
+        }
       }
     } else {
       /* Remove message from list of unacked messages */

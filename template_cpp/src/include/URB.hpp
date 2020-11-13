@@ -54,18 +54,24 @@ void urb_delivery(URB *urb) {
         std::make_pair(msg.source, msg.sno);
 
     /* Updating acked */
+    // std::cout << identifier << msg.stringify() << "\n";
     if (acked.find(msg_pair) == acked.end())
       acked[msg_pair] = 0;
-    acked[msg_pair]++;
-    if (acked[msg_pair] > num_processes / 2)
-      urb->outgoing.push_back(msg);
-
-    /* Updating pending and broadcasting */
-    if (!urb->pending.exists(msg.source, msg.sno)) {
-      urb->pending.insert_item(msg.source, msg.sno);
-      /* This must be done independent of ack status since you might be the only
-       * correct process that has received everything */
-      BEB_send(&(urb->beb), msg);
+    if (acked[msg_pair] != num_processes) {
+      /* This message has not been delivered yet */
+      acked[msg_pair]++;
+      if (acked[msg_pair] > num_processes / 2) {
+        urb->outgoing.push_back(msg);
+        acked[msg_pair] == num_processes;
+        // std::cout << identifier << msg.stringify() << "\n";
+      }
+      /* Updating pending and broadcasting */
+      if (!urb->pending.exists(msg.source, msg.sno)) {
+        urb->pending.insert_item(msg.source, msg.sno);
+        /* This must be done independent of ack status since you might be the
+         * only correct process that has received everything */
+        BEB_send(&(urb->beb), msg);
+      }
     }
   }
   std::cout << "BUG: Reached end of " << identifier << "\n";
