@@ -31,6 +31,7 @@ static void write_log() {
     log_file << logs.front().stringify() << "\n";
     logs.pop();
   }
+  log_file << std::flush;
   log_file.close();
 }
 
