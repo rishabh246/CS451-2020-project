@@ -122,6 +122,7 @@ int main(int argc, char **argv) {
   num_messages = parser.numMessages();
   num_processes = parser.hosts().size();
   num_max_messages = num_messages * num_processes;
+  unsigned long ctr = 0;
   std::cout << "Config Data:\n";
   std::cout << "===============\n";
   std::cout << "Maximum possible messages:" << num_max_messages << "\n\n";
@@ -137,7 +138,6 @@ int main(int argc, char **argv) {
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
-  unsigned long ctr = 0;
   do {
     AppMessage msg = FIFOBroadcast_send(&fifo);
     LogMessage log_msg(Broadcast, msg.source, msg.sno);

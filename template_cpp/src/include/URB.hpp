@@ -53,7 +53,6 @@ void urb_delivery(URB *urb) {
         std::make_pair(msg.source, msg.sno);
 
     /* Updating acked */
-    // std::cout << identifier << msg.stringify() << "\n" << std::flush;
     if (acked.find(msg_pair) == acked.end())
       acked[msg_pair] = 0;
     if (acked[msg_pair] < num_processes) {
@@ -62,7 +61,6 @@ void urb_delivery(URB *urb) {
       if (acked[msg_pair] > (num_processes / 2)) {
         urb->outgoing.push_back(msg);
         acked[msg_pair] = num_processes;
-        // std::cout << identifier << msg.stringify() << "\n";
       }
       /* Updating pending and broadcasting */
       if (!urb->pending.exists(msg.source, msg.sno)) {
