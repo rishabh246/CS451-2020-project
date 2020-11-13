@@ -31,7 +31,7 @@ void PL_init(PerfectLink *link, unsigned long host_id,
              std::vector<Parser::Host> hosts,
              std::vector<std::thread> *threads) {
   FLL_init(&(link->FLL), host_id, hosts, threads);
-  link->outgoing.debug_flag = 1;
+  link->outgoing.debug_flag = 0;
   /* Launch background threads */
   threads->push_back(std::thread(retransmit, link));
   threads->push_back(std::thread(delivery, link));
@@ -78,6 +78,8 @@ void delivery(PerfectLink *link) {
     unsigned long recvd_from = msg.msg.sender;
 
     if (msg.type == TX) {
+      // std::cout << identifier << msg.msg.stringify() << " from host "
+      //           << msg.msg.sender << "\n";
       /* Ensure no duplication */
       if (delivered.find(recvd_from) == delivered.end()) {
         delivered[recvd_from] = std::vector<NetworkMessage>{msg.msg};
@@ -103,9 +105,7 @@ void delivery(PerfectLink *link) {
       unsigned long temp = msg.msg.sender;
       msg.msg.sender = msg.msg.receiver;
       msg.msg.receiver = temp;
-      if (link->unacked_messages.exists(recvd_from, msg.msg)) {
-        link->unacked_messages.remove(recvd_from, msg.msg);
-      }
+      bool temp1 = link->unacked_messages.remove(recvd_from, msg.msg);
     }
   }
 }

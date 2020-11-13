@@ -133,78 +133,114 @@ public:
 
 /***** Thread safe Map *****/
 
-/***** Thread safe queue *****/
+// /***** Thread safe queue *****/
 
-/* From
- * https://stackoverflow.com/questions/36762248/why-is-stdqueue-not-thread-safe
- */
+// /* From
+//  * https://stackoverflow.com/questions/36762248/why-is-stdqueue-not-thread-safe
+//  */
 
-template <typename T> class SharedQueue {
-public:
-  int debug_flag;
-  SharedQueue();
-  ~SharedQueue();
+// template <typename T> class SharedQueue {
+// public:
+//   int debug_flag;
+//   SharedQueue();
+//   ~SharedQueue();
 
-  T &front();
-  void pop_front();
+//   T &front();
+//   void pop_front();
 
-  // void push_back(const T &item);
-  void push_back(T item);
+//   // void push_back(const T &item);
+//   void push_back(T item);
 
-  int size();
-  bool empty();
+//   int size();
+//   bool empty();
 
-private:
-  std::deque<T> queue_;
-  std::mutex mutex_;
-  std::condition_variable cond_;
-};
+// private:
+//   std::deque<T> queue_;
+//   std::mutex mutex_;
+//   std::condition_variable cond_;
+// };
 
-template <typename T> SharedQueue<T>::SharedQueue() { debug_flag = 0; }
+// template <typename T> SharedQueue<T>::SharedQueue() { thread = 0; }
 
-template <typename T> SharedQueue<T>::~SharedQueue() {}
+// template <typename T> SharedQueue<T>::~SharedQueue() {}
 
-template <typename T> T &SharedQueue<T>::front() {
-  std::unique_lock<std::mutex> mlock(mutex_);
-  while (queue_.empty()) {
-    cond_.wait(mlock);
-  }
-  return queue_.front();
-}
-
-template <typename T> void SharedQueue<T>::pop_front() {
-  std::unique_lock<std::mutex> mlock(mutex_);
-  while (queue_.empty()) {
-    cond_.wait(mlock);
-  }
-  queue_.pop_front();
-  if (debug_flag)
-    std::cout << "Queue: Pop\n";
-}
-
-template <typename T> void SharedQueue<T>::push_back(T item) {
-  std::unique_lock<std::mutex> mlock(mutex_);
-  queue_.push_back(item);
-  mlock.unlock();     // unlock before notificiation to minimize mutex con
-  cond_.notify_one(); // notify one waiting thread
-  if (debug_flag)
-    std::cout << "Queue: Push\n";
-}
-
-// template <typename T> void SharedQueue<T>::push_back(T &&item) {
+// template <typename T> T &SharedQueue<T>::front() {
 //   std::unique_lock<std::mutex> mlock(mutex_);
-//   queue_.push_back(std::move(item));
+//   while (queue_.empty()) {
+//     cond_.wait(mlock);
+//   }
+//   return queue_.front();
+// }
+
+// template <typename T> void SharedQueue<T>::pop_front() {
+//   std::unique_lock<std::mutex> mlock(mutex_);
+//   while (queue_.empty()) {
+//     cond_.wait(mlock);
+//   }
+//   queue_.pop_front();
+//   if (debug_flag)
+//     std::cout << "Queue: Pop. Elements remaining =  " << queue_.size() << "\n
+//     ";
+// }
+
+// template <typename T> void SharedQueue<T>::push_back(T item) {
+//   std::unique_lock<std::mutex> mlock(mutex_);
+//   queue_.push_back(item);
+//   if (debug_flag)
+//     std::cout << "Queue: Push. Elements remaining =  " << queue_.size()
+//               << "\n ";
 //   mlock.unlock();     // unlock before notificiation to minimize mutex con
 //   cond_.notify_one(); // notify one waiting thread
 // }
 
-template <typename T> int SharedQueue<T>::size() {
-  std::unique_lock<std::mutex> mlock(mutex_);
-  int size = queue_.size();
-  mlock.unlock();
-  return size;
-}
+// // template <typename T> void SharedQueue<T>::push_back(T &&item) {
+// //   std::unique_lock<std::mutex> mlock(mutex_);
+// //   queue_.push_back(std::move(item));
+// //   mlock.unlock();     // unlock before notificiation to minimize mutex con
+// //   cond_.notify_one(); // notify one waiting thread
+// // }
 
-template <typename T> bool SharedQueue<T>::empty() { return size() == 0; }
+// template <typename T> int SharedQueue<T>::size() {
+//   std::unique_lock<std::mutex> mlock(mutex_);
+//   int size = queue_.size();
+//   mlock.unlock();
+//   return size;
+// }
 
-/***** Thread safe queue ends *****/
+// template <typename T> bool SharedQueue<T>::empty() { return size() == 0; }
+
+// /***** Thread safe queue ends *****/
+
+// A threadsafe-queue.
+template <class T> class SharedQueue {
+public:
+  SharedQueue(void) : q(), m(), c() {}
+
+  ~SharedQueue(void) {}
+
+  // Add an element to the queue.
+  void enqueue(T t) {
+    std::lock_guard<std::mutex> lock(m);
+    q.push(t);
+    c.notify_one();
+  }
+
+  // Get the "front"-element.
+  // If the queue is empty, wait till a element is avaiable.
+  T dequeue(void) {
+    std::unique_lock<std::mutex> lock(m);
+    while (q.empty()) {
+      // release lock as long as the wait and reaquire it afterwards.
+      c.wait(lock);
+    }
+    T val = q.front();
+    q.pop();
+    return val;
+  }
+
+private:
+  std::queue<T> q;
+  mutable std::mutex m;
+  std::condition_variable c;
+};
+#endif

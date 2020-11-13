@@ -38,7 +38,7 @@ void receiver(FairLossLink *link);
 void FLL_init(FairLossLink *link, unsigned long host_id,
               std::vector<Parser::Host> hosts,
               std::vector<std::thread> *threads) {
-
+  link->outgoing.debug_flag = 1;
   link->host_id = host_id;
   struct sockaddr_in addr;
   for (auto &host : hosts) {
